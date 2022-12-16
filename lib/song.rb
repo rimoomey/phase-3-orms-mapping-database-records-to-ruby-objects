@@ -1,11 +1,21 @@
 class Song
-
   attr_accessor :name, :album, :id
 
   def initialize(name:, album:, id: nil)
     @id = id
     @name = name
     @album = album
+  end
+
+  def self.all
+    sql = <<-SQL
+      SELECT *
+      FROM songs
+    SQL
+
+    DB[:conn].execute(sql).map do |row|
+      new_from_db(row)
+    end
   end
 
   def self.drop_table
@@ -28,6 +38,23 @@ class Song
     DB[:conn].execute(sql)
   end
 
+  def self.new_from_db(row)
+    new(id: row[0], name: row[1], album: row[2])
+  end
+
+  def self.find_by_name(name)
+    sql = <<-SQL
+      SELECT *
+      FROM songs
+      WHERE name = ?
+      LIMIT 1
+    SQL
+
+    DB[:conn].execute(sql, name).map do |entry|
+      new_from_db(entry)
+    end.first
+  end
+
   def save
     sql = <<-SQL
       INSERT INTO songs (name, album)
@@ -35,10 +62,10 @@ class Song
     SQL
 
     # insert the song
-    DB[:conn].execute(sql, self.name, self.album)
+    DB[:conn].execute(sql, name, album)
 
     # get the song ID from the database and save it to the Ruby instance
-    self.id = DB[:conn].execute("SELECT last_insert_rowid() FROM songs")[0][0]
+    self.id = DB[:conn].execute('SELECT last_insert_rowid() FROM songs')[0][0]
 
     # return the Ruby instance
     self
